@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+
+# PyInstaller / 빌드 산출물
+build/
+dist/
+*.spec.bak
+
+# 번들 외부 바이너리 (다운로드되거나 사용자가 복사하는 거)
+bin/ffmpeg.exe
+
+# 가상환경
+venv/
+.venv/
+env/
+
+# IDE / Claude Code
+.vscode/
+.idea/
+.claude/
+CLAUDE.md
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 사용자 데이터 (혹시 잘못 들어갈 경우 대비)
+*.log
+.ssakkimchi/
+
+# 개인 광고 이미지 (사용자가 직접 넣는 자산은 커밋하지 않음)
+assets/exit_ad.png
+assets/exit_ad.jpg
+assets/exit_ad.webp

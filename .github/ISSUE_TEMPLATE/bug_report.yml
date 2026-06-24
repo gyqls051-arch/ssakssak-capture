@@ -1,0 +1,68 @@
+name: 🐛 버그 제보
+description: 동작하지 않거나 비정상 종료되는 문제를 알려주세요.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        시간 내주셔서 감사합니다.
+        **진단 정보**(도크 우클릭 → 정보 / 진단 → [진단 정보 복사])를 같이 붙여주시면 훨씬 빨리 잡을 수 있어요.
+
+  - type: input
+    id: version
+    attributes:
+      label: 앱 버전
+      description: 도크 우클릭 → 정보 / 진단 에서 확인. 예) v1.0.1
+      placeholder: v1.0.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Windows 버전
+      options:
+        - Windows 11
+        - Windows 10
+        - 기타 (Description에 적어주세요)
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 어떤 일이 일어났나요?
+      description: 무엇을 하려고 했고 / 무엇이 일어났고 / 무엇이 일어나야 하는지.
+      placeholder: |
+        예) Alt+8 로 녹화 시작 → 정지 시 파일이 0KB로 저장됨.
+            예상: 정상적인 MP4 파일이 생성되어야 함.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 재현 절차
+      description: 단계별로 적어주시면 더 좋아요.
+      placeholder: |
+        1. 앱 실행
+        2. ...
+        3. ...
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 진단 정보
+      description: |
+        도크 우클릭 → 정보 / 진단 → [진단 정보 복사] 로 복사한 텍스트를 붙여넣어주세요.
+        (ffmpeg 버전 / 인코더 / PySide6 버전 / 로그 경로 등이 포함됩니다)
+      render: text
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 로그 발췌 (선택)
+      description: |
+        `C:\Users\<사용자>\.ssakkimchi\logs\ssakkimchi.log` 의 관련 부분 (앞뒤 10줄 정도면 충분).
+      render: text
