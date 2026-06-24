@@ -94,7 +94,8 @@ package.bat
 - 종료 광고 다이얼로그 (이미지 자동 인식, 없으면 텍스트 fallback) — OFFCUT STUDIO 홍보 유지
 - `.gitignore` / `LICENSE` (MIT) / `README.md` / `CHANGELOG.md`
 
-**GitHub repo**: `gyqls051/ssakssak-capture` (URL은 코드/문서에 반영됨, 실제 repo 생성·push는 아직).
+**GitHub repo**: https://github.com/gyqls051-arch/ssakssak-capture (Public) — push 완료, 릴리즈 v1.0.2 게시됨.
+**다운로드**: https://github.com/gyqls051-arch/ssakssak-capture/releases/download/v1.0.2/Setup_SsakKimchiCapture_1.0.2.exe
 
 ---
 
@@ -103,9 +104,9 @@ package.bat
 2. `ssakkimchi/exit_ad.py:27` `STUDIO_URL` — OFFCUT STUDIO 홈페이지 URL (기본값 `https://offcut.app`)
 3. (선택) `assets/app.ico` — 다층 ICO. 추가 시 `build.spec`의 `EXE(icon=)` + `installer.iss`의 `SetupIconFile=` 양쪽에 경로 지정
 4. (선택) README.md용 스크린샷 (도크 / 부분캡처 / ●REC pill)
-5. GitHub: `gyqls051/ssakssak-capture` repo 생성 → `git remote add origin https://github.com/gyqls051/ssakssak-capture.git` → `git push -u origin main`
-6. Releases 페이지에서 버전 태그 + `Setup_SsakKimchiCapture_X.X.X.exe` 첨부
-7. 리브랜딩 후 재빌드 (`package.bat`) — 기존 `dist/Setup_OffcutCapture_*.exe`는 옛 이름이라 폐기
+5. ~~GitHub repo 생성 + push~~ ✅ 완료 (gyqls051-arch/ssakssak-capture, Public, 단일 커밋 `f39a3f2`)
+6. ~~Releases + 설치파일 첨부~~ ✅ 완료 (v1.0.2, exe+포터블 ZIP)
+7. ~~리브랜딩 후 재빌드~~ ✅ 완료. (단, `dist/`의 옛 `Setup_OffcutCapture_1.0.0/1.0.1.exe`는 수동 삭제 권장)
 
 **테스트 미완료**:
 - 본인 PC에서 리브랜딩 빌드 동작 확인 (트레이 툴팁/메뉴/종료 광고/`~/.ssakkimchi` 데이터 경로)
@@ -120,7 +121,8 @@ package.bat
 - **4차** (2026-05-17): 로그 시스템 + 진단 다이얼로그 + CHANGELOG + 버전 인프라
 - **5차** (2026-05-17): Inno Setup 인스톨러 (v1.0.0, Setup_*.exe 86.4MB)
 - **6차** (2026-05-17~18): v1.0.1 — 종료 광고 다이얼로그 + GitHub 배포 준비 (LICENSE/README/.gitignore/git init)
-- **7차** (2026-06-24): **싹싹김치 리브랜딩** — `오프컷 캡쳐/OFFCUT`→`싹싹김치 캡처`(캡쳐→캡처 표준 맞춤법 통일), 패키지 `offcut/`→`ssakkimchi/`, 데이터 `~/.offcut`→`~/.ssakkimchi`, 클래스 `OffcutApp`→`SsakKimchiApp`, 단일인스턴스 키·`SSAKKIMCHI_DEBUG`·`ssakkimchi.log`·`ssakkimchi_recording`·exe `Setup_SsakKimchiCapture`까지 전면 교체. GitHub `rlagyqls051-create/OFFCUT_Capture`→`gyqls051/ssakssak-capture`. 자매 제품 **OFFCUT STUDIO** + `offcut.app`은 의도적으로 보존. `.bat` 실행 파일 2개도 rename. 마이그레이션 코드 없음(기존 `~/.offcut` 데이터는 새 경로에서 안 읽힘).
+- **7차** (2026-06-24): **싹싹김치 리브랜딩** — `오프컷 캡쳐/OFFCUT`→`싹싹김치 캡처`(캡쳐→캡처 표준 맞춤법 통일), 패키지 `offcut/`→`ssakkimchi/`, 데이터 `~/.offcut`→`~/.ssakkimchi`, 클래스 `OffcutApp`→`SsakKimchiApp`, 단일인스턴스 키·`SSAKKIMCHI_DEBUG`·`ssakkimchi.log`·`ssakkimchi_recording`·exe `Setup_SsakKimchiCapture`까지 전면 교체. GitHub `rlagyqls051-create/OFFCUT_Capture`→`gyqls051-arch/ssakssak-capture`. 자매 제품 **OFFCUT STUDIO** + `offcut.app`은 의도적으로 보존. `.bat` 실행 파일 2개도 rename. 마이그레이션 코드 없음(기존 `~/.offcut` 데이터는 새 경로에서 안 읽힘).
+- **8차** (2026-06-24): **GitHub 공개 배포** — `gyqls051-arch/ssakssak-capture` Public repo 생성. 옛 OFFCUT 커밋 3개 제외하고 orphan 단일 커밋(`f39a3f2`, 작성자 gyqls051-arch noreply)으로 push, 옛 히스토리는 로컬 `backup-offcut-history`에 백업. Inno Setup(winget) 설치 후 `package.bat` 빌드 → `Setup_SsakKimchiCapture_1.0.2.exe`(85.6MB)+포터블 ZIP(125MB) → 릴리즈 **v1.0.2** 생성·첨부. 리브랜딩 당시 `gyqls051`로 잘못 적힌 README/문서/installer URL을 `gyqls051-arch`로 교정. (토큰 fine-grained PAT: repo 생성엔 Administration, push엔 Contents:write 권한 둘 다 필요했음.)
 
 ---
 

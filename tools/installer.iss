@@ -5,7 +5,7 @@
 #define MyAppName "싹싹김치 캡처"
 #define MyAppVersion "1.0.2"
 #define MyAppPublisher "싹싹김치"
-#define MyAppURL "https://github.com/gyqls051/ssakssak-capture"
+#define MyAppURL "https://github.com/gyqls051-arch/ssakssak-capture"
 #define MyAppExeName "싹싹김치 캡처.exe"
 #define SourceDir "..\dist\싹싹김치 캡처"
 
