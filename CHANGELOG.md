@@ -1,6 +1,12 @@
 # 싹싹김치 캡처 — 변경 이력
 
-## v1.0.2 — 2026-05-25
+## v1.0.2 — 2026-06-24
+
+### 브랜딩 / 공개 배포
+- **"오프컷 캡쳐" → "싹싹김치 캡처" 전면 리브랜딩** (`캡쳐`→`캡처` 표준 맞춤법으로 통일).
+- 내부 패키지 `offcut`→`ssakkimchi`, 데이터 폴더 `~/.offcut`→`~/.ssakkimchi`, 클래스 `OffcutApp`→`SsakKimchiApp`, 설치파일 `Setup_SsakKimchiCapture_*.exe`.
+- **GitHub 공개 배포**: [gyqls051-arch/ssakssak-capture](https://github.com/gyqls051-arch/ssakssak-capture) (Public) — 인스톨러 + 포터블 ZIP 릴리즈.
+- 자매 제품 **OFFCUT STUDIO** 종료 광고는 별개 브랜드라 그대로 유지 (`offcut.app`).
 
 ### 라이선스 / 배포
 - **번들 ffmpeg를 LGPL 빌드로 전환** (BtbN ffmpeg-master-latest-win64-lgpl)
