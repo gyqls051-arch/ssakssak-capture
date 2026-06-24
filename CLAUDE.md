@@ -38,7 +38,7 @@ package.bat
 - `main.py` — 엔트리 (logging + single instance + SsakKimchiApp)
 - `ssakkimchi/app.py` — 오케스트레이션. `quit()`에서 `_show_exit_ad()` hook
 - `ssakkimchi/recording.py` — RecordingController + GIF 2-pass + Job Object
-- `ssakkimchi/exit_ad.py` — 종료 광고 다이얼로그(OFFCUT STUDIO 홍보). **`STUDIO_URL` (line 27)** = 광고 클릭 시 이동할 홈페이지
+- `ssakkimchi/exit_ad.py` — 종료 팝업 배너 다이얼로그. 맨 위 **★배너 설정★ 블록**(`BANNER_ENABLED`/`BANNER_IMAGE`/`BANNER_URL`/`BANNER_TITLE`/`BANNER_SUBTITLE`/`BANNER_DESC`/`BANNER_BUTTON`/`BANNER_ACCENT`)만 고치면 배너 교체 가능. 이미지(assets/exit_ad.png) 우선, 없으면 텍스트 카드. 기본값=OFFCUT STUDIO 홍보(자매 제품). `app.py._show_exit_ad`가 `BANNER_ENABLED` 확인 후 표시. (`STUDIO_URL`은 `BANNER_URL` 하위호환 별칭)
 - `ssakkimchi/region_capture.py` — 단일 모니터 overlay (Qt6 듀얼모니터 이슈 회피용)
 - `ssakkimchi/hotkeys.py` + `ssakkimchi/hotkey_dialog.py` — pynput 기반 + 충돌 테스트 버튼
 - `ssakkimchi/win_job.py` — Windows Job Object (좀비 ffmpeg 방지)
@@ -93,6 +93,7 @@ package.bat
 - v1.0.2 인프라 (LGPL ffmpeg, THIRD_PARTY_LICENSES, 이슈 템플릿)
 - 종료 광고 다이얼로그 (이미지 자동 인식, 없으면 텍스트 fallback) — OFFCUT STUDIO 홍보 유지
 - `.gitignore` / `LICENSE` (MIT) / `README.md` / `CHANGELOG.md`
+- **종료 팝업 배너 설정화 (9차)** — `exit_ad.py` 맨 위 ★배너 설정★ 블록(이미지/링크/문구/표시여부/색). 동작 검증 완료, 기본값은 OFFCUT STUDIO 유지. 실제 배너 이미지/링크는 사용자가 나중에 제공 예정 → [[HANDOFF.md]]
 
 **GitHub repo**: https://github.com/gyqls051-arch/ssakssak-capture (Public) — push 완료, 릴리즈 v1.0.2 게시됨.
 **다운로드**: https://github.com/gyqls051-arch/ssakssak-capture/releases/download/v1.0.2/Setup_SsakKimchiCapture_1.0.2.exe
@@ -100,8 +101,8 @@ package.bat
 ---
 
 ## 사용자 미완료 작업 (배포 전)
-1. `assets/exit_ad.png` — 1040×585 (16:9) **OFFCUT STUDIO** 광고 이미지 (자매 제품, 싹싹김치 아님)
-2. `ssakkimchi/exit_ad.py:27` `STUDIO_URL` — OFFCUT STUDIO 홈페이지 URL (기본값 `https://offcut.app`)
+1. **종료 배너 이미지 + 링크** (사용자가 나중에 제공 예정) → `assets/exit_ad.png`(가로 1040px) 저장 + `exit_ad.py`의 `BANNER_URL`(싹싹김치 배너면 `BANNER_TITLE/SUBTITLE/DESC/BUTTON`도) 설정 → `package.bat` 재빌드 → 릴리즈 재첨부(`--clobber`). repo에 이미지 올리려면 `.gitignore`의 `assets/exit_ad.png` 줄 제거. 상세: [[HANDOFF.md]]
+2. (참고) 배너 끄려면 `BANNER_ENABLED=False`. 클릭/버튼 없는 단순 배너는 `BANNER_URL=""`.
 3. (선택) `assets/app.ico` — 다층 ICO. 추가 시 `build.spec`의 `EXE(icon=)` + `installer.iss`의 `SetupIconFile=` 양쪽에 경로 지정
 4. (선택) README.md용 스크린샷 (도크 / 부분캡처 / ●REC pill)
 5. ~~GitHub repo 생성 + push~~ ✅ 완료 (gyqls051-arch/ssakssak-capture, Public, 단일 커밋 `f39a3f2`)
@@ -123,6 +124,7 @@ package.bat
 - **6차** (2026-05-17~18): v1.0.1 — 종료 광고 다이얼로그 + GitHub 배포 준비 (LICENSE/README/.gitignore/git init)
 - **7차** (2026-06-24): **싹싹김치 리브랜딩** — `오프컷 캡쳐/OFFCUT`→`싹싹김치 캡처`(캡쳐→캡처 표준 맞춤법 통일), 패키지 `offcut/`→`ssakkimchi/`, 데이터 `~/.offcut`→`~/.ssakkimchi`, 클래스 `OffcutApp`→`SsakKimchiApp`, 단일인스턴스 키·`SSAKKIMCHI_DEBUG`·`ssakkimchi.log`·`ssakkimchi_recording`·exe `Setup_SsakKimchiCapture`까지 전면 교체. GitHub `rlagyqls051-create/OFFCUT_Capture`→`gyqls051-arch/ssakssak-capture`. 자매 제품 **OFFCUT STUDIO** + `offcut.app`은 의도적으로 보존. `.bat` 실행 파일 2개도 rename. 마이그레이션 코드 없음(기존 `~/.offcut` 데이터는 새 경로에서 안 읽힘).
 - **8차** (2026-06-24): **GitHub 공개 배포** — `gyqls051-arch/ssakssak-capture` Public repo 생성. 옛 OFFCUT 커밋 3개 제외하고 orphan 단일 커밋(`f39a3f2`, 작성자 gyqls051-arch noreply)으로 push, 옛 히스토리는 로컬 `backup-offcut-history`에 백업. Inno Setup(winget) 설치 후 `package.bat` 빌드 → `Setup_SsakKimchiCapture_1.0.2.exe`(85.6MB)+포터블 ZIP(125MB) → 릴리즈 **v1.0.2** 생성·첨부. 리브랜딩 당시 `gyqls051`로 잘못 적힌 README/문서/installer URL을 `gyqls051-arch`로 교정. (토큰 fine-grained PAT: repo 생성엔 Administration, push엔 Contents:write 권한 둘 다 필요했음.)
+- **9차** (2026-06-24): **종료 팝업 배너 설정화** — `exit_ad.py`를 맨 위 ★배너 설정★ 블록(`BANNER_ENABLED/IMAGE/URL/TITLE/SUBTITLE/DESC/BUTTON/ACCENT`)으로 리팩터. 이미지/문구/링크/색/표시여부를 코드 수정 없이 교체 가능. `app.py._show_exit_ad`가 `BANNER_ENABLED` 확인 후 표시. 버튼 hover/pressed 색은 `_shade()`로 자동 음영. 오프스크린 스모크 테스트 통과. `assets/README.txt`도 새 방식으로 갱신. 실제 배너 이미지/링크는 사용자가 나중에 제공 예정. 작업 인계용 `HANDOFF.md` 추가.
 
 ---
 

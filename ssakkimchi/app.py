@@ -749,6 +749,8 @@ class SsakKimchiApp:
         QApplication.quit()
 
     def _show_exit_ad(self) -> None:
-        from .exit_ad import ExitAdDialog
+        from .exit_ad import ExitAdDialog, BANNER_ENABLED
+        if not BANNER_ENABLED:
+            return
         dlg = ExitAdDialog()
         dlg.exec()
