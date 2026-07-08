@@ -57,9 +57,8 @@
 ## 🔑 git / GitHub 인증 메모
 - `origin` = `https://github.com/gyqls051-arch/ssakssak-capture.git`
 - 커밋 작성자(이 repo 한정): `user.name=gyqls051-arch`, `user.email=284581949+gyqls051-arch@users.noreply.github.com`
-- ⚠️ 로컬 gh keyring 활성 계정은 **`rlagyqls051-create`** (gyqls051-arch 아님). gyqls051-arch repo 작업은 **`GH_TOKEN` 환경변수에 gyqls051-arch PAT**를 넣고 실행해야 함.
-- push는 토큰 inline URL 방식 사용: `git remote set-url origin https://x-access-token:<TOKEN>@github.com/...; git push; (원복)`.
-- **PAT 권한**: repo 생성 = `Administration: write`, push/release = `Contents: write` 둘 다 필요(fine-grained).
+- ✅ 2026-07-09 확인: gh keyring에 **gyqls051-arch가 활성 계정**으로 로그인돼 있음(repo 스코프) → **`git push` / `gh release` 그냥 됨**, PAT 불필요.
+  (rlagyqls051-create도 keyring에 있으나 비활성. 활성 계정이 바뀌어 있으면 `gh auth switch -u gyqls051-arch`.)
 - 옛 OFFCUT 히스토리: 로컬 브랜치 `backup-offcut-history` 에 보존 (원격엔 없음).
 
 ## 🔒 보안
