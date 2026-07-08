@@ -1,5 +1,3 @@
-import os
-import subprocess
 from pathlib import Path
 from typing import Optional
 
@@ -28,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from .icons import make_icon
+from .shell_utils import reveal_in_explorer
 from .tokens import COLORS, FONT_FAMILY
 
 
@@ -197,13 +196,7 @@ class CapturePreview(QWidget):
     def _open_folder(self) -> None:
         if self._file_path is None:
             return
-        try:
-            subprocess.Popen(["explorer", "/select,", str(self._file_path)])
-        except Exception:
-            try:
-                os.startfile(self._file_path.parent)
-            except Exception:
-                pass
+        reveal_in_explorer(self._file_path)
 
     def _fade_out(self) -> None:
         self._dismiss_timer.stop()

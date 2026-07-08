@@ -1,13 +1,11 @@
 import atexit
 import os
-import subprocess
-import sys
 import warnings
 from pathlib import Path
 from typing import List
 
 from PySide6.QtCore import QRect, QTimer, Qt
-from PySide6.QtGui import QImage
+from PySide6.QtGui import QCursor, QGuiApplication, QImage
 from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
 
 from .capture_preview import CapturePreview
@@ -36,6 +34,7 @@ from .version import version_string
 log = get_logger("app")
 from .region_capture import RegionCaptureOverlay
 from .scroll_capture import ScrollCaptureController
+from .shell_utils import reveal_in_explorer
 from .storage import load_data, save_data
 from .toast import Toast
 from .tokens import PALETTE_MAX_HISTORY, PANEL_GAP
@@ -129,7 +128,10 @@ class SsakKimchiApp:
     def start(self) -> None:
         cleanup_stale_temp_files()
         self._dock.show_anchored()
-        self._hotkeys.start(self._current_hotkey_bindings())
+        if not self._hotkeys.start(self._current_hotkey_bindings()):
+            Toast.show_text(
+                "전역 단축키 등록 실패 — 도크/트레이로 이용해 주세요", duration_ms=3200
+            )
 
     def take_over_prtsc_key(self) -> None:
         """도크 우클릭 메뉴에서 호출. PrtSc를 부분캡처로 바인딩하고 OS 라우팅 끔."""
@@ -142,10 +144,17 @@ class SsakKimchiApp:
         hotkeys = settings.setdefault("hotkeys", dict(default_hotkeys()))
         hotkeys["region"] = "<print_screen>"
         save_data(self._data)
-        self._hotkeys.restart(hotkeys)
+        hk_ok = self._hotkeys.restart(hotkeys)
         # 우리가 라우팅을 껐음을 표시 → 종료 시 안전망 복원 대상.
+        # (핫키 등록 실패와 무관하게 레지스트리는 이미 바꿨으므로 반드시 기록)
         self._prtsc_taken_over = True
         self._prtsc_restored = False
+        if not hk_ok:
+            Toast.show_text(
+                "PrtSc 설정은 변경됐지만 단축키 등록 실패 — 단축키 설정에서 재시도",
+                duration_ms=3400,
+            )
+            return
         suffix = "" if already else "\n(즉시 안 되면 Windows 한 번 재로그인)"
         Toast.show_text(f"PrtSc → 부분캡처{suffix}", duration_ms=3000)
 
@@ -184,10 +193,15 @@ class SsakKimchiApp:
         if hotkeys.get("region") == "<print_screen>":
             hotkeys["region"] = defaults["region"]
         save_data(self._data)
-        self._hotkeys.restart(hotkeys)
+        hk_ok = self._hotkeys.restart(hotkeys)
         # 사용자가 명시적으로 되돌렸으므로 안전망 복원은 더 할 필요 없음.
         self._prtsc_taken_over = False
         self._prtsc_restored = True
+        if not hk_ok:
+            Toast.show_text(
+                "복원됐지만 단축키 재등록 실패 — 단축키 설정에서 재시도", duration_ms=3000
+            )
+            return
         Toast.show_text("PrtSc → Windows 기본으로 복원됨", duration_ms=2400)
 
     def _restore_prtsc_on_exit(self) -> None:
@@ -244,8 +258,10 @@ class SsakKimchiApp:
         settings = self._data.setdefault("settings", {})
         settings["hotkeys"] = new_bindings
         save_data(self._data)
-        self._hotkeys.restart(new_bindings)
-        Toast.show_text("단축키 저장됨", duration_ms=1500)
+        if self._hotkeys.restart(new_bindings):
+            Toast.show_text("단축키 저장됨", duration_ms=1500)
+        else:
+            Toast.show_text("저장은 됐지만 단축키 등록 실패 — 로그 확인", duration_ms=3000)
 
     def _hide_dock(self) -> None:
         self._dock.hide()
@@ -349,7 +365,9 @@ class SsakKimchiApp:
         elif mode == "gif":
             ov.region_selected.connect(self._on_gif_region_picked)
             ov.cancelled.connect(self._on_record_overlay_cancelled)
-        ov.begin()
+        # region/ocr은 픽셀을 grab하므로 프리즈 프레임(레이스 없음),
+        # record/gif/scroll은 rect만 필요해서 라이브 화면 유지
+        ov.begin(freeze=mode in ("region", "ocr"))
 
     def start_region_capture(self) -> None:
         if self._color_active:
@@ -383,6 +401,10 @@ class SsakKimchiApp:
         self._restore_after_capture()
 
     def _deliver_capture(self, image: QImage, kind: str, label: str) -> None:
+        # mss grab 실패(잠금 화면/보안 데스크톱 등)는 None으로 흘러올 수 있다.
+        if image is None or image.isNull():
+            Toast.show_text("캡처 실패")
+            return
         QApplication.clipboard().setImage(image)
         path = save_image(image, kind=kind)
         self._preview.show_capture(image, path, label=label)
@@ -391,7 +413,13 @@ class SsakKimchiApp:
         if self._color_active:
             self._stop_color_pick()
         self._hide_dock_for_capture()
-        screen = self._dock.screen()
+        # 사용자가 보고 있는(커서가 있는) 모니터를 캡처. 도크는 다른 모니터에
+        # 있을 수 있으므로 도크 기준이 아니다.
+        screen = (
+            QGuiApplication.screenAt(QCursor.pos())
+            or self._dock.screen()
+            or QGuiApplication.primaryScreen()
+        )
         QTimer.singleShot(140, lambda s=screen: self._do_full_capture(s))
 
     def _do_full_capture(self, screen) -> None:
@@ -528,6 +556,12 @@ class SsakKimchiApp:
             return
         QApplication.clipboard().setText(text)
         Toast.show_text(f"OCR 완료 · {len(text)}자 복사됨")
+        from .ocr_result_dialog import OcrResultDialog
+        dlg = OcrResultDialog(text)
+        self._ocr_dialog = dlg  # GC 방지 참조 (WA_DeleteOnClose가 정리)
+        dlg.show()
+        dlg.raise_()
+        dlg.activateWindow()
 
     def _on_ocr_failed(self, message: str) -> None:
         self._ocr_worker = None
@@ -605,21 +639,7 @@ class SsakKimchiApp:
         self._restore_after_capture()
         label = "GIF 저장됨" if kind == "gif" else "녹화 저장됨"
         Toast.show_text(f"{label}\n{Path(path).name}", duration_ms=2600)
-        self._reveal_in_explorer(Path(path))
-
-    def _reveal_in_explorer(self, file_path: Path) -> None:
-        if sys.platform != "win32" or not file_path.exists():
-            return
-        try:
-            subprocess.Popen(
-                ["explorer", f"/select,{file_path}"],
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            )
-        except Exception:
-            try:
-                os.startfile(str(file_path.parent))
-            except Exception:
-                pass
+        reveal_in_explorer(Path(path))
 
     def _on_recording_failed(self, message: str) -> None:
         self._record_mode = None
@@ -730,6 +750,12 @@ class SsakKimchiApp:
             pass
         try:
             self._recorder.cancel()
+        except Exception:
+            pass
+        try:
+            # 스크롤 캡처/스티칭이 진행 중이면 워커까지 정리 (QThread 파괴 크래시 방지)
+            if self._scroll_controller is not None:
+                self._scroll_controller.cancel()
         except Exception:
             pass
         try:

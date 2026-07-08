@@ -2,7 +2,7 @@ import ctypes
 from ctypes import wintypes
 from typing import List, Optional, Set, Tuple
 
-from PySide6.QtCore import QObject, QPoint, QRect, Qt, QTimer, Signal
+from PySide6.QtCore import QObject, QRect, Qt, Signal
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -13,7 +13,8 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QWidget
 
-from .capture_core import grab_qimage, region_dict, virtual_desktop_geometry
+from .capture_core import grab_qimage, virtual_desktop_geometry
+from .coords import cursor_physical_pos, physical_to_logical_rect
 from .tokens import FONT_FAMILY
 
 
@@ -135,12 +136,11 @@ class _HighlightOverlay(QWidget):
         if global_rect is None:
             new_rect = QRect()
         else:
+            # DWM rect는 물리 픽셀 → 논리로 변환 후 오버레이 로컬 좌표로
             l, t, r, b = global_rect
-            new_rect = QRect(
-                l - self._virtual_geom.x(),
-                t - self._virtual_geom.y(),
-                r - l,
-                b - t,
+            logical = physical_to_logical_rect(QRect(l, t, r - l, b - t))
+            new_rect = logical.translated(
+                -self._virtual_geom.x(), -self._virtual_geom.y()
             )
         if new_rect != self._target_rect:
             self._target_rect = new_rect
@@ -153,12 +153,14 @@ class _HighlightOverlay(QWidget):
             super().keyPressEvent(event)
 
     def mouseMoveEvent(self, event) -> None:
-        p = event.globalPosition().toPoint()
+        # 히트테스트는 물리 좌표(EnumWindows/DWM rect와 동일 좌표계)로.
+        # Qt 이벤트 좌표(논리)는 배율≠100% 모니터에서 어긋나므로 쓰지 않는다.
+        p = cursor_physical_pos()
         self._session._update_target_under(p.x(), p.y())
 
     def mousePressEvent(self, event) -> None:
-        p = event.globalPosition().toPoint()
         if event.button() == Qt.LeftButton:
+            p = cursor_physical_pos()
             self._session._handle_click(p.x(), p.y())
         elif event.button() == Qt.RightButton:
             self._session._cancel()
@@ -262,9 +264,8 @@ class WindowCaptureSession(QObject):
         if w < 5 or h < 5:
             self.cancelled.emit()
             return
-        screen = QGuiApplication.screenAt(QPoint(x, y)) or QGuiApplication.primaryScreen()
-        dpr = float(screen.devicePixelRatio() or 1.0) if screen else 1.0
-        img = grab_qimage(region_dict(QRect(left, top, w, h), dpr))
+        # DWM rect는 이미 물리 픽셀 — dpr을 곱하면 이중 변환이라 그대로 grab.
+        img = grab_qimage({"left": left, "top": top, "width": w, "height": h})
         if img is None:
             self.cancelled.emit()
             return

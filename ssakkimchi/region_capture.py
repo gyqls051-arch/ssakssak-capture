@@ -1,31 +1,32 @@
 from PySide6.QtCore import QPoint, QRect, Qt, Signal
 from PySide6.QtGui import (
     QColor,
-    QCursor,
     QFont,
-    QGuiApplication,
     QImage,
     QPainter,
     QPen,
+    QPixmap,
 )
 from PySide6.QtWidgets import QWidget
 
-from .capture_core import grab_qimage, virtual_desktop_geometry
+from .capture_core import active_screen_info, grab_qimage
+from .coords import screen_physical_geometry
 from .tokens import FONT_FAMILY
 
 
-def _active_screen_geometry() -> tuple[QRect, float]:
-    """마우스 커서가 있는 모니터 1개의 geometry + DPR. 듀얼모니터 호환."""
-    cursor = QCursor.pos()
-    screen = QGuiApplication.screenAt(cursor)
-    if screen is None:
-        screen = QGuiApplication.primaryScreen()
-    if screen is None:
-        return virtual_desktop_geometry(), 1.0
-    return QRect(screen.geometry()), float(screen.devicePixelRatio() or 1.0)
+DIM_COLOR = QColor(0, 0, 0, 90)
 
 
 class RegionCaptureOverlay(QWidget):
+    """드래그 영역 선택 오버레이 (커서가 있는 모니터 1개만 덮음).
+
+    freeze 모드(부분 캡처/OCR): begin() 시점에 화면을 얼려 배경으로 깔고,
+    확정 시 얼린 이미지에서 크롭한다 → hide/컴포지터 타이밍 레이스 없음,
+    드래그 중 화면이 변해도 '열었을 때 본 그대로' 캡처됨.
+    live 모드(녹화/GIF/스크롤 영역 선택): rect만 emit하므로 얼리지 않고
+    반투명 딤 + 구멍 방식으로 라이브 화면을 보여준다.
+    """
+
     captured = Signal(QImage)
     region_selected = Signal(QRect, float)
     cancelled = Signal()
@@ -42,17 +43,39 @@ class RegionCaptureOverlay(QWidget):
         self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setCursor(Qt.CrossCursor)
         self.setMouseTracking(True)
-        self._virtual_geom, self._dpr = _active_screen_geometry()
+        self._screen = None
+        self._virtual_geom, self._dpr = QRect(), 1.0
+        self._screen, self._virtual_geom, self._dpr = active_screen_info()
         self.setGeometry(self._virtual_geom)
         self._start: QPoint | None = None
         self._end: QPoint | None = None
         self._cursor_pos = QPoint(0, 0)
+        self._frozen: QImage | None = None
+        self._frozen_pm = QPixmap()
 
-    def begin(self) -> None:
+    def begin(self, freeze: bool = True) -> None:
         self._start = None
         self._end = None
-        self._virtual_geom, self._dpr = _active_screen_geometry()
+        self._screen, self._virtual_geom, self._dpr = active_screen_info()
         self.setGeometry(self._virtual_geom)
+        self._frozen = None
+        self._frozen_pm = QPixmap()
+        if freeze and self._screen is not None:
+            phys = screen_physical_geometry(self._screen)
+            img = grab_qimage(
+                {
+                    "left": phys.x(),
+                    "top": phys.y(),
+                    "width": phys.width(),
+                    "height": phys.height(),
+                }
+            )
+            # grab 실패 시 라이브 모드로 자연 폴백 (기존 동작)
+            if img is not None and not img.isNull():
+                self._frozen = img
+                pm = QPixmap.fromImage(img)
+                pm.setDevicePixelRatio(self._dpr)
+                self._frozen_pm = pm
         self.show()
         self.raise_()
         self.activateWindow()
@@ -67,6 +90,9 @@ class RegionCaptureOverlay(QWidget):
         super().hideEvent(event)
         self.releaseKeyboard()
         self.releaseMouse()
+        # 얼린 프레임(1080p 기준 ~8MB)은 표시 중에만 유지
+        self._frozen = None
+        self._frozen_pm = QPixmap()
 
     def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key_Escape:
@@ -92,6 +118,7 @@ class RegionCaptureOverlay(QWidget):
             return
         self._end = event.position().toPoint()
         rect = self._selection_rect()
+        frozen = self._frozen  # hide()가 프레임을 비우기 전에 잡아둔다
         self.hide()
         if rect.width() >= 2 and rect.height() >= 2:
             global_rect = QRect(
@@ -101,7 +128,10 @@ class RegionCaptureOverlay(QWidget):
                 rect.height(),
             )
             self.region_selected.emit(global_rect, self._dpr)
-            image = self._grab(rect)
+            if frozen is not None:
+                image = self._crop_frozen(frozen, rect)
+            else:
+                image = self._grab(rect)
             self.captured.emit(image)
         else:
             self.cancelled.emit()
@@ -115,13 +145,21 @@ class RegionCaptureOverlay(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, False)
 
-        painter.fillRect(self.rect(), QColor(0, 0, 0, 90))
+        if not self._frozen_pm.isNull():
+            painter.drawPixmap(0, 0, self._frozen_pm)
 
         if self._start is not None and self._end is not None:
             rect = self._selection_rect()
-            painter.setCompositionMode(QPainter.CompositionMode_Clear)
-            painter.fillRect(rect, Qt.transparent)
-            painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            if self._frozen_pm.isNull():
+                # 라이브 모드: 전체 딤 후 선택 영역을 투명 구멍으로
+                painter.fillRect(self.rect(), DIM_COLOR)
+                painter.setCompositionMode(QPainter.CompositionMode_Clear)
+                painter.fillRect(rect, Qt.transparent)
+                painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            else:
+                # frozen 모드: 선택 영역 바깥 4개 조각만 딤
+                # (얼린 픽스맵 부분 재드로우보다 좌표 모호성이 없음)
+                self._dim_outside(painter, rect)
 
             pen = QPen(QColor(255, 255, 255, 235), 1)
             painter.setPen(pen)
@@ -130,7 +168,26 @@ class RegionCaptureOverlay(QWidget):
 
             self._draw_size_badge(painter, rect)
         else:
+            painter.fillRect(self.rect(), DIM_COLOR)
             self._draw_hint(painter)
+
+    def _dim_outside(self, painter: QPainter, sel: QRect) -> None:
+        full = self.rect()
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(DIM_COLOR)
+        top = QRect(full.x(), full.y(), full.width(), sel.y() - full.y())
+        bottom = QRect(
+            full.x(), sel.y() + sel.height(),
+            full.width(), full.y() + full.height() - (sel.y() + sel.height()),
+        )
+        left = QRect(full.x(), sel.y(), sel.x() - full.x(), sel.height())
+        right = QRect(
+            sel.x() + sel.width(), sel.y(),
+            full.x() + full.width() - (sel.x() + sel.width()), sel.height(),
+        )
+        for r in (top, bottom, left, right):
+            if r.width() > 0 and r.height() > 0:
+                painter.fillRect(r, DIM_COLOR)
 
     def _draw_hint(self, painter: QPainter) -> None:
         text = "Drag to capture · Esc to cancel"
@@ -174,13 +231,35 @@ class RegionCaptureOverlay(QWidget):
         painter.setPen(QColor(26, 26, 26))
         painter.drawText(badge, Qt.AlignCenter, text)
 
-    def _grab(self, qrect: QRect) -> QImage:
+    def _crop_frozen(self, frozen: QImage, local_rect: QRect) -> QImage:
+        """얼린 프레임(활성 화면의 물리 픽셀)에서 논리 선택 영역을 크롭.
+
+        오버레이와 얼린 프레임이 같은 화면을 덮으므로
+        로컬 논리 좌표 × dpr = 프레임 내 물리 좌표 (한 화면 안에선 정확)."""
         dpr = self._dpr
-        gx = self._virtual_geom.x() + qrect.x()
-        gy = self._virtual_geom.y() + qrect.y()
+        phys = QRect(
+            int(round(local_rect.x() * dpr)),
+            int(round(local_rect.y() * dpr)),
+            max(1, int(round(local_rect.width() * dpr))),
+            max(1, int(round(local_rect.height() * dpr))),
+        ).intersected(frozen.rect())
+        if phys.isEmpty():
+            return QImage()
+        return frozen.copy(phys)
+
+    def _grab(self, qrect: QRect) -> QImage:
+        """라이브 폴백: 화면에서 직접 grab (frozen 실패 시에만)."""
+        if self._screen is not None:
+            origin = screen_physical_geometry(self._screen).topLeft()
+        else:
+            origin = QPoint(
+                int(round(self._virtual_geom.x() * self._dpr)),
+                int(round(self._virtual_geom.y() * self._dpr)),
+            )
+        dpr = self._dpr
         region = {
-            "left": int(round(gx * dpr)),
-            "top": int(round(gy * dpr)),
+            "left": origin.x() + int(round(qrect.x() * dpr)),
+            "top": origin.y() + int(round(qrect.y() * dpr)),
             "width": max(1, int(round(qrect.width() * dpr))),
             "height": max(1, int(round(qrect.height() * dpr))),
         }

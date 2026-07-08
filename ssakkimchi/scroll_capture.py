@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from PySide6.QtCore import QObject, QRect, Qt, QTimer, Signal
+from PySide6.QtCore import QObject, QRect, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QGuiApplication, QImage
 from PySide6.QtWidgets import QWidget
 
@@ -30,6 +30,29 @@ MIN_MATCH_RATIO = 0.92
 EDGE_MARGIN_PX = 40
 
 
+class _StitchWorker(QThread):
+    """프레임 이어붙이기를 UI 스레드 밖에서 — 겹침 탐색(numpy)이 수 초 걸릴 수 있음.
+
+    QImage 생성은 비GUI 스레드에서 안전 (QPixmap만 금지)."""
+
+    done = Signal(QImage)
+    failed = Signal()
+
+    def __init__(self, frames: List[Image.Image]) -> None:
+        super().__init__()
+        self._frames = frames
+
+    def run(self) -> None:
+        try:
+            stitched = ScrollCaptureController._stitch_frames(self._frames)
+            if stitched is None:
+                self.failed.emit()
+                return
+            self.done.emit(ScrollCaptureController._pil_to_qimage(stitched))
+        except Exception:
+            self.failed.emit()
+
+
 class ScrollCaptureController(QObject):
     finished = Signal(QImage)
     cancelled = Signal()
@@ -53,6 +76,7 @@ class ScrollCaptureController(QObject):
         self._sct = None
         self._key_listener = None
         self._finalized = False
+        self._stitch_worker: Optional[_StitchWorker] = None
 
     def start(self) -> None:
         self._sct = mss.mss()
@@ -106,14 +130,37 @@ class ScrollCaptureController(QObject):
         if len(self._frames) < 2:
             self.cancelled.emit()
             return
-        stitched = self._stitch_frames(self._frames)
-        if stitched is None:
-            self.cancelled.emit()
-            return
-        qimg = self._pil_to_qimage(stitched)
+        # 스티칭은 워커 스레드에서 — UI 프리즈 방지 (F-3)
+        Toast.show_text(f"이어붙이는 중… ({len(self._frames)}장)", duration_ms=2000)
+        worker = _StitchWorker(self._frames)
+        self._stitch_worker = worker
+        worker.done.connect(self._on_stitch_done)
+        worker.failed.connect(self._on_stitch_failed)
+        worker.finished.connect(worker.deleteLater)
+        worker.start()
+
+    def _on_stitch_done(self, qimg: QImage) -> None:
+        self._stitch_worker = None
         self.finished.emit(qimg)
 
+    def _on_stitch_failed(self) -> None:
+        self._stitch_worker = None
+        self.cancelled.emit()
+
     def cancel(self) -> None:
+        # 스티칭 중 취소(주로 quit 경로): 시그널을 끊고 워커 종료를 기다려
+        # "QThread destroyed while running" 크래시를 막는다.
+        worker = self._stitch_worker
+        if worker is not None:
+            self._stitch_worker = None
+            for sig in (worker.done, worker.failed):
+                try:
+                    sig.disconnect()
+                except (RuntimeError, TypeError):
+                    pass
+            worker.wait(3000)
+            self.cancelled.emit()
+            return
         if self._finalized:
             return
         self._finalized = True

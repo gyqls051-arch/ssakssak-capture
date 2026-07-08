@@ -16,9 +16,12 @@ def _load() -> dict:
 
 
 def _save(data: dict) -> None:
+    # storage.save_data와 같은 원자적 쓰기 — 쓰는 도중 크래시해도 파손 없음.
     path = settings_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
 
 
 def get_captures_dir() -> Path:

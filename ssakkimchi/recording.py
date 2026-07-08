@@ -5,7 +5,9 @@
 - stop()의 wait()는 별도 데몬 스레드에서 실행 → UI 블록 0
 - stderr는 DEVNULL (장시간 녹화 시 64KB 파이프 풀 방지)
   실패 진단용 마지막 stderr는 ffmpeg가 -report 안 쓰는 한 못 잡지만, return code로 분기
-- MP4: gdigrab → 자동 감지된 HW 인코더 (nvenc/qsv/amf) 또는 libx264
+- MP4: gdigrab → 자동 감지된 인코더 (nvenc/qsv/amf → SW 폴백 h264_mf/libopenh264/mpeg4).
+  시작 직후(2초 내) ffmpeg가 죽으면 인코더 초기화 실패로 보고
+  다음 우선순위 인코더로 자동 재시도 (HW 오탐지·MF 불안정 환경 커버).
 - GIF: 일단 MP4로 녹화 → stop 시 별도 QThread에서 2-pass palettegen으로 변환
 """
 from __future__ import annotations
@@ -23,7 +25,7 @@ from typing import Optional
 from PySide6.QtCore import QObject, QThread, QTimer, Signal
 
 from .capture_storage import captures_dir
-from .ffmpeg_runtime import detect_best_encoder, encoder_args, find_ffmpeg
+from .ffmpeg_runtime import available_encoders, encoder_args, find_ffmpeg
 from .logging_setup import get_logger
 from .win_job import assign_pid as _job_assign_pid
 
@@ -220,6 +222,9 @@ class RecordingController(QObject):
         self._proc: Optional[subprocess.Popen] = None
         self._stopping = False
         self._mode = "mp4"
+        self._region: Optional[RecordRegion] = None
+        self._encoder = ""
+        self._encoders: list[str] = []
         self._mp4_path: Optional[Path] = None
         self._gif_path: Optional[Path] = None
         self._final_dir: Optional[Path] = None
@@ -239,8 +244,11 @@ class RecordingController(QObject):
         ffmpeg = find_ffmpeg()
         if not ffmpeg:
             return "ffmpeg.exe를 찾지 못함\n(~/.ssakkimchi/bin/ffmpeg.exe 에 두거나 PATH 등록)"
-        encoder = detect_best_encoder() or "libx264"
+        # 사용 가능한 인코더 전부를 후보 큐로 — 첫 후보가 시작 직후 죽으면
+        # _on_tick이 다음 후보로 자동 재시도한다.
+        self._encoders = list(available_encoders()) or ["mpeg4"]
         self._mode = mode
+        self._region = region
 
         target_dir = captures_dir()
         workspace = _ascii_workspace_if_needed(target_dir)
@@ -253,6 +261,19 @@ class RecordingController(QObject):
             self._mp4_path = _timestamped("record", "mp4", base=work_base)
             self._gif_path = None
 
+        err = self._launch(ffmpeg, self._encoders.pop(0))
+        if err is not None:
+            return err
+
+        self._elapsed = 0
+        self._tick.start()
+        self.started.emit()
+        return None
+
+    def _launch(self, ffmpeg: str, encoder: str) -> Optional[str]:
+        """지정 인코더로 ffmpeg 기동. 실패 메시지 또는 None."""
+        region = self._region
+        self._encoder = encoder
         cmd: list[str] = [
             ffmpeg,
             "-hide_banner",
@@ -273,7 +294,8 @@ class RecordingController(QObject):
         ]
 
         log.info("starting recording: mode=%s, region=%dx%d at (%d,%d), encoder=%s, output=%s",
-                 mode, region.width, region.height, region.x, region.y, encoder, self._mp4_path)
+                 self._mode, region.width, region.height, region.x, region.y,
+                 encoder, self._mp4_path)
         try:
             self._proc = subprocess.Popen(
                 cmd,
@@ -288,21 +310,30 @@ class RecordingController(QObject):
             return f"ffmpeg 실행 실패: {exc}"
 
         _job_assign_pid(self._proc.pid)
-
-        self._elapsed = 0
-        self._tick.start()
-        self.started.emit()
         return None
 
     def _on_tick(self) -> None:
         if self._proc is None or self._stopping:
             return
         if self._proc.poll() is not None:
-            self._tick.stop()
             rc = self._proc.returncode
             self._proc = None
-            log.error("ffmpeg died unexpectedly with rc=%s", rc)
-            self.failed.emit(f"녹화가 비정상 종료됨 (rc={rc})")
+            log.error("ffmpeg died unexpectedly (rc=%s, encoder=%s)", rc, self._encoder)
+            # 시작 직후 사망 = 인코더 초기화 실패 가능성 → 남은 후보로 자동 재시도.
+            # 중반 사망은 재시도해도 기존 내용이 사라지므로 그냥 실패 처리.
+            if self._elapsed < 2 and self._encoders:
+                ffmpeg = find_ffmpeg()
+                if ffmpeg and self._mp4_path is not None:
+                    try:
+                        self._mp4_path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                    nxt = self._encoders.pop(0)
+                    log.info("retrying with fallback encoder: %s", nxt)
+                    if self._launch(ffmpeg, nxt) is None:
+                        return
+            self._tick.stop()
+            self.failed.emit(f"녹화가 비정상 종료됨 (rc={rc}, 인코더={self._encoder})")
             return
         self._elapsed += 1
         self.progress.emit(self._elapsed)

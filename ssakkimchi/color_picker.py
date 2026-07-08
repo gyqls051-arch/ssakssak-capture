@@ -13,7 +13,8 @@ from PySide6.QtWidgets import QWidget
 
 import mss
 
-from .capture_core import virtual_desktop_geometry
+from .capture_core import active_screen_info
+from .coords import logical_to_physical_point
 from .icons import render_pixmap
 from .tokens import FONT_FAMILY
 
@@ -53,7 +54,9 @@ class ColorPickerOverlay(QWidget):
         self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setMouseTracking(True)
         self.setCursor(_build_eyedropper_cursor())
-        self._virtual_geom = virtual_desktop_geometry()
+        # 커서가 있는 모니터 1개만 덮음 — region_capture와 동일한
+        # Qt6 듀얼모니터 mouse event 이슈 회피 (CLAUDE.md 2차 실측)
+        self._screen, self._virtual_geom, self._dpr = active_screen_info()
         self.setGeometry(self._virtual_geom)
 
         self._cursor_pos = QPoint(0, 0)
@@ -66,7 +69,7 @@ class ColorPickerOverlay(QWidget):
         self._refresh.timeout.connect(self._sample_and_update)
 
     def begin(self) -> None:
-        self._virtual_geom = virtual_desktop_geometry()
+        self._screen, self._virtual_geom, self._dpr = active_screen_info()
         self.setGeometry(self._virtual_geom)
         self.show()
         self.raise_()
@@ -117,12 +120,11 @@ class ColorPickerOverlay(QWidget):
     def _sample(self) -> None:
         if self._sct is None:
             return
-        screen = self.screen() or QGuiApplication.primaryScreen()
-        dpr = float(screen.devicePixelRatio() if screen else 1.0)
-
+        screen = self._screen or self.screen() or QGuiApplication.primaryScreen()
         global_pt = self.mapToGlobal(self._cursor_pos)
-        cx = int(round(global_pt.x() * dpr))
-        cy = int(round(global_pt.y() * dpr))
+        # 논리→물리는 coords 헬퍼로 (배율 다른 보조 모니터에서도 정확)
+        phys = logical_to_physical_point(global_pt, screen)
+        cx, cy = phys.x(), phys.y()
         n = self.SAMPLE_SIZE
         region = {
             "left": cx - n // 2,

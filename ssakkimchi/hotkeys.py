@@ -2,10 +2,15 @@ from typing import Dict, Optional
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
+from .logging_setup import get_logger
+
 try:
     from pynput import keyboard as _pkb
 except Exception:
     _pkb = None
+
+
+log = get_logger("hotkeys")
 
 
 _KEY_ALIASES = {
@@ -180,26 +185,40 @@ class HotkeyManager(QObject):
         super().__init__()
         self._listener: Optional[object] = None
 
-    def start(self, bindings: Dict[str, str]) -> None:
+    def start(self, bindings: Dict[str, str]) -> bool:
+        """전역 핫키 등록. 하나라도 등록되면 True.
+
+        잘못된 조합 문자열 1개 때문에 전체가 죽지 않도록, 조합별로
+        parse 검증해서 나쁜 것만 건너뛴다. 실패는 로그에 남긴다."""
         if _pkb is None:
-            return
+            log.error("pynput unavailable — global hotkeys disabled")
+            return False
         mapping = {}
         for action, combo in bindings.items():
             combo = (combo or "").strip()
             if not combo:
                 continue
+            try:
+                _pkb.HotKey.parse(combo)
+            except Exception as exc:
+                log.warning("invalid hotkey %r for %s: %s — skipped", combo, action, exc)
+                continue
             mapping[combo] = self._make_emitter(action)
         if not mapping:
-            return
+            log.warning("no valid hotkey bindings to register")
+            return False
         try:
             self._listener = _pkb.GlobalHotKeys(mapping)
             self._listener.start()
         except Exception:
+            log.exception("GlobalHotKeys start failed")
             self._listener = None
+            return False
+        return True
 
-    def restart(self, bindings: Dict[str, str]) -> None:
+    def restart(self, bindings: Dict[str, str]) -> bool:
         self.stop()
-        self.start(bindings)
+        return self.start(bindings)
 
     def stop(self) -> None:
         if self._listener is not None:

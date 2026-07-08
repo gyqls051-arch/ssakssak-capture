@@ -5,7 +5,7 @@ from PySide6.QtCore import QPoint, QRect, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
-from .capture_core import virtual_desktop_geometry
+from .capture_core import active_screen_info
 from .tokens import FONT_FAMILY
 
 
@@ -25,14 +25,15 @@ class DistanceOverlay(QWidget):
         self.setAttribute(Qt.WA_NoSystemBackground, True)
         self.setMouseTracking(True)
         self.setCursor(Qt.CrossCursor)
-        self._virtual_geom = virtual_desktop_geometry()
+        # 커서가 있는 모니터 1개만 덮음 (Qt6 듀얼모니터 이슈 회피, region과 동일)
+        self._screen, self._virtual_geom, self._dpr = active_screen_info()
         self.setGeometry(self._virtual_geom)
         self._start: Optional[QPoint] = None
         self._cursor = QPoint(0, 0)
 
     def begin(self) -> None:
         self._start = None
-        self._virtual_geom = virtual_desktop_geometry()
+        self._screen, self._virtual_geom, self._dpr = active_screen_info()
         self.setGeometry(self._virtual_geom)
         self.show()
         self.raise_()

@@ -1,9 +1,21 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 from PySide6.QtCore import QRect
-from PySide6.QtGui import QGuiApplication, QImage
+from PySide6.QtGui import QCursor, QGuiApplication, QImage, QScreen
 
 import mss
+
+
+def active_screen_info() -> Tuple[Optional[QScreen], QRect, float]:
+    """마우스 커서가 있는 모니터의 (screen, 논리 geometry, dpr).
+
+    오버레이는 이 화면 1개만 덮는다 — 가상 데스크톱 전체를 덮으면
+    Qt6가 mouse event를 못 받는 이슈가 있음 (듀얼모니터 실측, CLAUDE.md)."""
+    cursor = QCursor.pos()
+    screen = QGuiApplication.screenAt(cursor) or QGuiApplication.primaryScreen()
+    if screen is None:
+        return None, virtual_desktop_geometry(), 1.0
+    return screen, QRect(screen.geometry()), float(screen.devicePixelRatio() or 1.0)
 
 
 def virtual_desktop_geometry() -> QRect:
