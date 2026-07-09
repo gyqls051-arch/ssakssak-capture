@@ -3,7 +3,7 @@
 ; 수동 빌드: "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" tools\installer.iss
 
 #define MyAppName "싹싹김치 캡처"
-#define MyAppVersion "1.0.2"
+#define MyAppVersion "1.0.4"
 #define MyAppPublisher "싹싹김치"
 #define MyAppURL "https://github.com/gyqls051-arch/ssakssak-capture"
 #define MyAppExeName "싹싹김치 캡처.exe"

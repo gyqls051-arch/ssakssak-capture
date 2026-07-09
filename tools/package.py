@@ -227,7 +227,13 @@ def build_installer() -> Optional[Path]:
         sys.stderr.write(proc.stdout)
         log(f"ISCC failed (rc={proc.returncode}) — 인스톨러 skip.")
         return None
-    setup = next(DIST_ROOT.glob("Setup_SsakKimchiCapture_*.exe"), None)
+    # 옛 버전 exe가 dist에 남아 있을 수 있으므로 '가장 최근 것'을 집는다
+    setups = sorted(
+        DIST_ROOT.glob("Setup_SsakKimchiCapture_*.exe"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    setup = setups[0] if setups else None
     if setup is None:
         log("Setup_*.exe 못 찾음.")
         return None

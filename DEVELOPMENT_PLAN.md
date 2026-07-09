@@ -332,7 +332,7 @@ Phase 4  v1.2.0  주석 에디터          A-1         (3~5일, 별도 설계)
 
 ### 릴리즈 절차 (매 Phase)
 
-1. `ssakkimchi/version.py` VERSION bump
+1. 버전 bump — **2곳**: `ssakkimchi/version.py` VERSION **+ `tools/installer.iss` `MyAppVersion`** (⚠ iss는 하드코딩이라 빼먹으면 옛 버전 이름의 인스톨러가 나옴 — 2026-07-09 실제로 걸렸던 함정)
 2. `CHANGELOG.md` 항목 추가
 3. `package.bat` → `dist/Setup_SsakKimchiCapture_X.X.X.exe` + ZIP
 4. 설치 → 스모크(도크/단축키/캡처 1회/녹화 1회/종료 배너/제거)
