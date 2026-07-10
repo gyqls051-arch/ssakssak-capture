@@ -1,12 +1,13 @@
 # HANDOFF — 싹싹김치 캡처
 
-> 작업 인계 문서. 마지막 갱신: 2026-07-09
+> 작업 인계 문서. 마지막 갱신: 2026-07-10
 > 프로젝트 전체 가이드는 [CLAUDE.md](CLAUDE.md), 작업 지시서는 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) 참고. 이 문서는 "지금 상태 + 다음 할 일"만.
 
 ## 한 줄 요약
-**v1.0.4 코드 완료·커밋됨 (배포는 아직 v1.0.2).** DPI/멀티모니터 버그 수정 + 인코더 폴백 업그레이드 + 프리즈 프레임 캡처 등 (계획서 Phase 1+2).
+**v1.0.4 빌드·릴리즈 완료** — https://github.com/gyqls051-arch/ssakssak-capture/releases/tag/v1.0.4
+DPI/멀티모니터 버그 수정 + 인코더 폴백 업그레이드 + 프리즈 프레임 캡처 (계획서 Phase 1+2).
 **Windows 전용으로 확정** — macOS 작업 금지 (CLAUDE.md 비-자명 결정).
-👉 **다음 할 일: ① 빌드 → 실기 테스트 → 릴리즈 v1.0.4, ② 종료 배너 이미지(사용자 제공 대기)**
+👉 **다음 할 일: ① 실기 테스트 2건(아래), ② 종료 배너 이미지(사용자 제공 대기), ③ 기능 개발은 계획서 Phase 3부터**
 
 ---
 
@@ -23,14 +24,15 @@
 
 ---
 
-## ⏭️ 다음 할 일 1 — v1.0.4 빌드·테스트·릴리즈
+## ⏭️ 다음 할 일 1 — 실기 테스트 (v1.0.4는 이미 배포됨 — 문제 발견 시 패치 릴리즈)
 
-1. **빌드**: `package.bat` → `dist/Setup_SsakKimchiCapture_1.0.4.exe` + 포터블 ZIP. (오래 걸림 — 백그라운드 권장)
-2. **실기 테스트** (DEVELOPMENT_PLAN.md §8 매트릭스). 꼭 볼 것:
-   - Windows 배율을 **150%로 바꿔서** 창 캡처 정확성 (이번 수정의 핵심 검증 — 끝나면 배율 원복)
-   - 듀얼모니터에서 **창 캡처** 마우스 이벤트 (유일하게 가상 데스크톱 오버레이 유지한 기능 — 문제 시 계획서 F-2 지시 3)
-   - 부분 캡처 결과 가장자리에 흰 1px/딤 없는지, HW 인코더 임시 차단 후 h264_mf 녹화
-3. **릴리즈**: `gh release create v1.0.4 <exe> <zip> --title ... --notes-file` (CHANGELOG 발췌). 인증은 아래 "git / GitHub 인증 메모".
+DEVELOPMENT_PLAN.md §8 매트릭스 중 자동화로 검증 못 한 2건:
+- Windows 배율을 **150%로 바꿔서** 창 캡처 정확성 (이번 수정의 핵심 검증 — 끝나면 배율 원복)
+- 듀얼모니터에서 **창 캡처** 마우스 이벤트 (유일하게 가상 데스크톱 오버레이 유지한 기능 — 문제 시 계획서 F-2 지시 3)
+- (여유 되면) 부분 캡처 결과 가장자리 픽셀, HW 인코더 임시 차단 후 h264_mf 녹화
+
+빌드+기동 스모크는 완료됨 (프로즌 빌드 v1.0.4 "entering event loop" 확인, 2026-07-09).
+⚠ 재빌드 시 버전 bump는 **2곳**: `ssakkimchi/version.py` + `tools/installer.iss`(MyAppVersion 하드코딩).
 
 ## ⏭️ 다음 할 일 2 — 종료 배너 (사용자가 이미지+링크 줄 예정)
 
@@ -57,8 +59,10 @@
 ## 🔑 git / GitHub 인증 메모
 - `origin` = `https://github.com/gyqls051-arch/ssakssak-capture.git`
 - 커밋 작성자(이 repo 한정): `user.name=gyqls051-arch`, `user.email=284581949+gyqls051-arch@users.noreply.github.com`
-- ✅ 2026-07-09 확인: gh keyring에 **gyqls051-arch가 활성 계정**으로 로그인돼 있음(repo 스코프) → **`git push` / `gh release` 그냥 됨**, PAT 불필요.
-  (rlagyqls051-create도 keyring에 있으나 비활성. 활성 계정이 바뀌어 있으면 `gh auth switch -u gyqls051-arch`.)
+- gh keyring에 **gyqls051-arch / rlagyqls051-create 둘 다** 로그인돼 있는데, **활성 계정이 수시로 바뀜**(다른 프로젝트가 rlagyqls051-create 사용 — 같은 날 안에서도 플립된 것 실측). 활성 계정이 다르면 push가 403.
+- **확실한 방법 (전역 계정 안 건드림)**:
+  - push: `TOKEN=$(gh auth token --user gyqls051-arch) && git push "https://x-access-token:${TOKEN}@github.com/gyqls051-arch/ssakssak-capture.git" main:main`
+  - gh 명령: `GH_TOKEN=$(gh auth token --user gyqls051-arch) gh release ...`
 - 옛 OFFCUT 히스토리: 로컬 브랜치 `backup-offcut-history` 에 보존 (원격엔 없음).
 
 ## 🔒 보안
