@@ -1,13 +1,24 @@
 # HANDOFF — 싹싹김치 캡처
 
-> 작업 인계 문서. 마지막 갱신: 2026-07-10
+> 작업 인계 문서. 마지막 갱신: 2026-07-11
 > 프로젝트 전체 가이드는 [CLAUDE.md](CLAUDE.md), 작업 지시서는 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) 참고. 이 문서는 "지금 상태 + 다음 할 일"만.
 
 ## 한 줄 요약
-**v1.0.4 빌드·릴리즈 완료** — https://github.com/gyqls051-arch/ssakssak-capture/releases/tag/v1.0.4
+**v1.0.4 빌드·릴리즈 완료 + 싹싹김치 공홈 게시 완료** — https://github.com/gyqls051-arch/ssakssak-capture/releases/tag/v1.0.4
 DPI/멀티모니터 버그 수정 + 인코더 폴백 업그레이드 + 프리즈 프레임 캡처 (계획서 Phase 1+2).
 **Windows 전용으로 확정** — macOS 작업 금지 (CLAUDE.md 비-자명 결정).
 👉 **다음 할 일: ① 실기 테스트 2건(아래), ② 종료 배너 이미지(사용자 제공 대기), ③ 기능 개발은 계획서 Phase 3부터**
+
+## 🌐 공홈 게시 (2026-07-11)
+- 라이브: https://ssakssak-landing.vercel.app/capture.html (+ 메인에 캡처 카드 섹션)
+- 공홈 다운로드 버튼은 `releases/latest/download/` + **버전 없는 고정 파일명** 사용:
+  `Setup_SsakKimchiCapture.exe` / `SsakKimchiCapture_portable.zip`
+- ⚠ **새 릴리즈 게시 때마다 이 고정 이름 자산 2개도 같이 첨부할 것** (버전 파일명 자산과 별도로). 안 그러면 `latest` 링크가 새 릴리즈에서 404. 공홈 HTML은 수정 불필요.
+  ```
+  cd dist && cp Setup_SsakKimchiCapture_X.Y.Z.exe Setup_SsakKimchiCapture.exe && cp SsakKimchiCapture_X.Y.Z_portable.zip SsakKimchiCapture_portable.zip
+  GH_TOKEN=$(gh auth token --user gyqls051-arch) gh release upload vX.Y.Z Setup_SsakKimchiCapture.exe SsakKimchiCapture_portable.zip --clobber
+  ```
+- 공홈 소스: `../싹싹김치 공홈/` (별도 폴더, Vercel `ssakssak-landing`). 배포법은 그 폴더 README 참고.
 
 ---
 
