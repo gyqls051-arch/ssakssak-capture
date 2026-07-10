@@ -107,6 +107,7 @@ package.bat
 
 **GitHub repo**: https://github.com/gyqls051-arch/ssakssak-capture (Public) — 최신 릴리즈 **v1.0.4** (2026-07-10 게시).
 **다운로드**: https://github.com/gyqls051-arch/ssakssak-capture/releases/download/v1.0.4/Setup_SsakKimchiCapture_1.0.4.exe
+**공홈 게시됨 (2026-07-11)**: https://ssakssak-landing.vercel.app/capture.html — 릴리즈에 **버전 없는 고정 파일명 자산**(`Setup_SsakKimchiCapture.exe`, `SsakKimchiCapture_portable.zip`)을 추가로 올려서 공홈이 `releases/latest/download/<고정이름>` 으로 항상 최신을 가리킴. ⚠ **새 릴리즈 때마다 이 고정 이름 2개도 같이 첨부해야 공홈 링크가 안 깨짐** (공홈 HTML 수정 불필요). 공홈 소스: `../싹싹김치 공홈/` (git 아님, Vercel `ssakssak-landing`).
 
 ---
 
@@ -139,6 +140,7 @@ package.bat
 - **11차** (2026-07-08): **Phase 2 구현(v1.0.4 코드)** — F-1 부분캡처/OCR 프리즈 프레임(begin 시 화면 얼려 크롭 — hide 레이스 원천 제거, 딤은 선택 바깥 4조각 방식, grab 실패 시 라이브 폴백), F-2 색추출·거리측정 단일 모니터화(`capture_core.active_screen_info()` 공용화, 색 샘플링 coords 기반; 창 캡처는 가상 데스크톱 유지—실기 확인 대기), F-3 스크롤 스티칭 `_StitchWorker(QThread)`화+진행 토스트+quit 시 워커 정리, F-4 `ocr_result_dialog.py`(수정 가능 modeless 항상-위, 자동 복사 유지). 버전 1.0.4로 bump(1.0.3은 미배포 합본). 오프스크린 스모크(프리즈 크롭 크기/라이브 모드/스티칭 합성 프레임 300×400/다이얼로그/cancel 중복 호출) 전부 통과.
 - **12차** (2026-07-09): **Windows 전용 확정 + 핸드오프 + v1.0.4 커밋** — macOS 포팅 검토 결과 "맥은 별도 네이티브 앱으로" 결정(비-자명 결정 참조). README에 Windows 전용 명시 + 인코더 설명 최신화, `.gitignore`의 `CLAUDE.md` 줄 제거(미결정 해소), `HANDOFF.md`를 v1.0.4 기준으로 전면 갱신. Phase 1+2 산출물 전체 커밋·푸시 (`69c9b96`, `90514c2`, `d3ae213`).
 - **13차** (2026-07-09): **v1.0.4 빌드 + 기동 스모크** — ⚠ `tools/installer.iss`의 `MyAppVersion`이 하드코딩이라 버전 bump는 **version.py + installer.iss 2곳** 수정해야 함(실제로 걸림). `package.bat` 빌드 → `Setup_SsakKimchiCapture_1.0.4.exe`(90.8MB) + `SsakKimchiCapture_1.0.4_portable.zip`(131.9MB). 프로즌 빌드 8초 기동 스모크: "v1.0.4 starting → entering event loop" 확인 후 종료. `package.py`의 installer 로그가 옛 exe를 집던 glob 순서 문제도 수정(mtime 최신 우선). 사용자 승인 후 **릴리즈 v1.0.4 게시 완료** (2026-07-10, exe 90.8MB + portable zip 131.9MB 첨부 확인). ⚠ 세션 도중 gh 활성 계정이 rlagyqls051-create로 플립되어 push 403 발생 — `gh auth token --user gyqls051-arch` 인라인 토큰 방식으로 해결(HANDOFF 인증 메모 갱신).
+- **14차** (2026-07-11): **싹싹김치 공홈에 캡처 정식 게시** — v1.0.4 릴리즈에 **버전 없는 고정 이름 자산** 2개 추가 업로드(`Setup_SsakKimchiCapture.exe`, `SsakKimchiCapture_portable.zip`) → 공홈은 `releases/latest/download/<고정이름>` 으로 연결(다운로더/플레이어와 같은 패턴, **새 릴리즈 때마다 고정 이름 자산도 같이 첨부할 것**). `../싹싹김치 공홈/`의 `capture.html`을 "준비 중"→정식 출시 페이지로 재작성(기능/단축키/설치법/포터블 링크), `index.html`에 캡처 카드 섹션+nav+히어로 문구 추가(동시 진행되던 다른 세션의 한글뷰어 섹션 보존). Vercel `ssakssak-landing` 프로덕션 배포 후 라이브 검증 완료. 공홈 README의 낡은 배포 안내(본계정 로그인 가정)도 현행화 — 현재 CLI는 gyqls051-arch 로그인 상태라 토큰 불필요.
 
 ---
 
