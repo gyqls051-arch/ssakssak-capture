@@ -28,7 +28,8 @@ from .system_integration import (
     read_snipping_route_raw,
     restore_snipping_route,
 )
-from .version import version_string
+from .version import VERSION, version_string
+from .update_check import check_for_update
 
 
 log = get_logger("app")
@@ -132,6 +133,34 @@ class SsakKimchiApp:
             Toast.show_text(
                 "전역 단축키 등록 실패 — 도크/트레이로 이용해 주세요", duration_ms=3200
             )
+        # 백그라운드 업데이트 체크 — 결과 dict를 GUI 스레드로 marshal.
+        check_for_update(
+            VERSION, self.VERSION_INFO_URL,
+            lambda d: QTimer.singleShot(0, lambda: self._on_update_result(d)),
+        )
+        # 종료 배너의 원격 오버라이드 (promo.json) — 시작 시 미리 받아둔다
+        from .exit_ad import fetch_remote_banner
+        fetch_remote_banner("capture")
+
+    # 리포 루트의 version.json (raw.githubusercontent — 무료, CI가 태그 릴리스 때 갱신)
+    VERSION_INFO_URL = (
+        "https://raw.githubusercontent.com/gyqls051-arch/ssakssak-capture/main/version.json"
+    )
+
+    def _on_update_result(self, d: dict) -> None:
+        kind = d.get("kind")
+        url = d.get("download_url") or "https://www.ssakkimchi.com"
+        if kind == "new_version":
+            notes = d.get("release_notes") or ""
+            body = d.get("message", "") + (f"\n\n{notes}" if notes else "")
+            body += "\n\n다운로드 페이지를 열까요?"
+            if QMessageBox.question(None, "업데이트 안내", body) == QMessageBox.Yes:
+                os.startfile(url)
+        elif kind in ("force_update", "killswitch"):
+            body = d.get("message", "") + "\n\n다운로드 페이지를 열까요?"
+            if QMessageBox.warning(None, "업데이트 필요", body,
+                                   QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
+                os.startfile(url)
 
     def take_over_prtsc_key(self) -> None:
         """도크 우클릭 메뉴에서 호출. PrtSc를 부분캡처로 바인딩하고 OS 라우팅 끔."""
@@ -775,8 +804,8 @@ class SsakKimchiApp:
         QApplication.quit()
 
     def _show_exit_ad(self) -> None:
-        from .exit_ad import ExitAdDialog, BANNER_ENABLED
-        if not BANNER_ENABLED:
+        from .exit_ad import ExitAdDialog, BANNER_ENABLED, _cfg
+        if not _cfg('enabled', BANNER_ENABLED):
             return
         dlg = ExitAdDialog()
         dlg.exec()
