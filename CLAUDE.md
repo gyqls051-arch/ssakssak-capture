@@ -102,7 +102,7 @@ package.bat
 - 싹싹김치 리브랜딩 (7차) — 코드/빌드/문서/GitHub 링크 전면 교체, 내부 패키지 `offcut`→`ssakkimchi` 마이그레이션 없이 변경
 - v1.0.2 인프라 (LGPL ffmpeg, THIRD_PARTY_LICENSES, 이슈 템플릿)
 - 종료 광고 다이얼로그 (이미지 자동 인식, 없으면 텍스트 fallback) — OFFCUT STUDIO 홍보 유지
-- `.gitignore` / `LICENSE` (MIT) / `README.md` / `CHANGELOG.md`
+- `.gitignore` / `LICENSE` (싹싹김치 프리웨어, 2026-10-12 MIT에서 교체) / `README.md` / `CHANGELOG.md`
 - **종료 팝업 배너 설정화 (9차)** — `exit_ad.py` 맨 위 ★배너 설정★ 블록(이미지/링크/문구/표시여부/색). 동작 검증 완료, 기본값은 OFFCUT STUDIO 유지. 실제 배너 이미지/링크는 사용자가 나중에 제공 예정 → [[HANDOFF.md]]
 
 **GitHub repo**: https://github.com/gyqls051-arch/ssakssak-capture (Public) — 최신 릴리즈 **v1.0.4** (2026-07-10 게시).

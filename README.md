@@ -95,10 +95,10 @@ package.bat
 - **SmartScreen "PC 보호함" 다이얼로그**: "추가 정보" → "실행" (위 [다운로드](#다운로드) 섹션 참고)
 
 ## 라이선스
-이 앱(소스 코드)은 **MIT** — 자세한 내용은 [LICENSE](LICENSE) 참고.
+이 앱(소스 코드)은 **싹싹김치 프리웨어 라이선스** — 무료 사용 가능, 유료 재판매·변조 배포·사칭 금지. 자세한 내용은 [LICENSE](LICENSE) 참고.
 
 번들된 ffmpeg 및 의존성 라이선스는 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) 참고.
-주요 의존성 중 일부(ffmpeg, PySide6, pynput)는 LGPL로 배포되며, 본 앱은 동적 링크/별도 프로세스 호출 방식으로만 사용해 MIT 라이선스를 유지합니다.
+주요 의존성 중 일부(ffmpeg, PySide6, pynput)는 LGPL로 배포되며, 본 앱은 동적 링크/별도 프로세스 호출 방식으로만 사용해 각자의 라이선스 조건을 유지합니다.
 
 ## 기여 / 버그 제보
 - 버그 제보: [Issues](https://github.com/gyqls051-arch/ssakssak-capture/issues/new/choose)
