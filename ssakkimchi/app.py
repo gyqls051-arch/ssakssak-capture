@@ -30,6 +30,8 @@ from .system_integration import (
 )
 from .version import VERSION, version_string
 from .update_check import check_for_update
+from .update_bridge import UpdateBridge
+from .ssak_installer import Client as UpdateClient, Config as UpdateConfig
 
 
 log = get_logger("app")
@@ -54,6 +56,12 @@ except Exception:
 class SsakKimchiApp:
     def __init__(self) -> None:
         self._data = load_data()
+        self._update_bridge = UpdateBridge(self._on_update_result)
+        self._update_installing = False
+        self._capture_pending = False
+        self._update_client = UpdateClient(
+            UpdateConfig("ssakssak-capture", "Setup_SsakKimchiCapture_{version}.exe", "inno", "SsakSsak Capture", "싹싹김치 캡처.exe"),
+            VERSION, self._update_bridge.received.emit)
 
         # PrtSc 레지스트리 안전망: 앱 시작 시점의 '원래 값'을 보존해 두고,
         # 종료 시(정상 quit + 비정상 종료 모두) 이 값으로 복원한다.
@@ -133,10 +141,11 @@ class SsakKimchiApp:
             Toast.show_text(
                 "전역 단축키 등록 실패 — 도크/트레이로 이용해 주세요", duration_ms=3200
             )
+        self._update_client.recover()
         # 백그라운드 업데이트 체크 — 결과 dict를 GUI 스레드로 marshal.
         check_for_update(
             VERSION, self.VERSION_INFO_URL,
-            lambda d: QTimer.singleShot(0, lambda: self._on_update_result(d)),
+            self._update_bridge.received.emit,
         )
         # 종료 배너의 원격 오버라이드 (promo.json) — 시작 시 미리 받아둔다
         from .exit_ad import fetch_remote_banner
@@ -147,20 +156,38 @@ class SsakKimchiApp:
         "https://raw.githubusercontent.com/gyqls051-arch/ssakssak-capture/main/version.json"
     )
 
+    def _update_busy(self) -> bool:
+        return (self._recorder.is_active() or self._scroll_controller is not None
+                or self._ocr_worker is not None or self._capture_pending
+                or self._color_active or self._preview.isVisible())
+
     def _on_update_result(self, d: dict) -> None:
         kind = d.get("kind")
-        url = d.get("download_url") or "https://www.ssakkimchi.com"
-        if kind == "new_version":
-            notes = d.get("release_notes") or ""
-            body = d.get("message", "") + (f"\n\n{notes}" if notes else "")
-            body += "\n\n다운로드 페이지를 열까요?"
-            if QMessageBox.question(None, "업데이트 안내", body) == QMessageBox.Yes:
-                os.startfile(url)
-        elif kind in ("force_update", "killswitch"):
-            body = d.get("message", "") + "\n\n다운로드 페이지를 열까요?"
-            if QMessageBox.warning(None, "업데이트 필요", body,
-                                   QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
-                os.startfile(url)
+        if kind in ("new_version", "force_update"):
+            self._update_client.begin(d.get("latest", ""))
+        elif kind == "install_ready":
+            if self._update_busy():
+                self._update_client.cancel()
+                QMessageBox.information(None, "업데이트 대기", "녹화·캡처·문자 인식 작업이 끝난 뒤 다음 실행 때 업데이트합니다.")
+                return
+            answer = QMessageBox.question(None, "업데이트 준비 완료",
+                "검증된 새 버전으로 업데이트하고 다시 시작할까요?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if answer == QMessageBox.Yes:
+                if self._update_busy():
+                    self._update_client.cancel()
+                    return
+                self._update_installing = True
+                if not self._update_client.install():
+                    self._update_installing = False
+            else:
+                self._update_client.cancel()
+        elif kind == "install_started":
+            self.quit()
+        elif kind == "install_error":
+            self._update_installing = False
+            QMessageBox.information(None, "업데이트 보류", d.get("message", "업데이트하지 못했습니다.") +
+                                    "\n현재 앱은 계속 사용할 수 있습니다.")
 
     def take_over_prtsc_key(self) -> None:
         """도크 우클릭 메뉴에서 호출. PrtSc를 부분캡처로 바인딩하고 OS 라우팅 끔."""
@@ -261,6 +288,8 @@ class SsakKimchiApp:
         return bindings
 
     def _on_hotkey(self, action: str) -> None:
+        if self._update_installing:
+            return
         if action in ("record", "gif") and self._recorder.is_active():
             self._stop_recording()
             return
@@ -323,6 +352,8 @@ class SsakKimchiApp:
             self._color_overlay.hide()
 
     def _on_dock_clicked(self, key: str) -> None:
+        if self._update_installing:
+            return
         if key in ("record", "gif") and self._recorder.is_active():
             self._stop_recording()
             return
@@ -399,6 +430,8 @@ class SsakKimchiApp:
         ov.begin(freeze=mode in ("region", "ocr"))
 
     def start_region_capture(self) -> None:
+        if self._update_installing:
+            return
         if self._color_active:
             self._color_overlay.hide()
         self._hide_dock_for_capture()
@@ -412,6 +445,7 @@ class SsakKimchiApp:
         self._restore_after_capture()
 
     def _restore_after_capture(self) -> None:
+        self._capture_pending = False
         if self._recorder.is_active():
             return
         self._dock.show_anchored()
@@ -421,6 +455,7 @@ class SsakKimchiApp:
             self._open_panel(animated=False)
 
     def _hide_dock_for_capture(self) -> None:
+        self._capture_pending = True
         self._panel_was_visible_before_capture = self._panel.isVisible()
         self._dock.hide()
         if self._panel.isVisible():
@@ -439,6 +474,8 @@ class SsakKimchiApp:
         self._preview.show_capture(image, path, label=label)
 
     def start_full_capture(self) -> None:
+        if self._update_installing:
+            return
         if self._color_active:
             self._stop_color_pick()
         self._hide_dock_for_capture()
@@ -462,6 +499,8 @@ class SsakKimchiApp:
         self._deliver_capture(img, kind="full", label="전체 화면 캡처됨")
 
     def start_window_capture(self) -> None:
+        if self._update_installing:
+            return
         if self._color_active:
             self._stop_color_pick()
         self._hide_dock_for_capture()
@@ -472,6 +511,8 @@ class SsakKimchiApp:
         self._deliver_capture(image, kind="window", label="창 캡처됨")
 
     def start_distance_measure(self) -> None:
+        if self._update_installing:
+            return
         if self._color_active:
             self._stop_color_pick()
         self._hide_dock_for_capture()
@@ -484,6 +525,8 @@ class SsakKimchiApp:
         Toast.show_text(f"{text}  ·  클립보드 복사됨")
 
     def start_scroll_capture(self) -> None:
+        if self._update_installing:
+            return
         if self._color_active:
             self._stop_color_pick()
         self._hide_dock_for_capture()
@@ -517,6 +560,8 @@ class SsakKimchiApp:
         Toast.show_text("스크롤 캡처 취소됨")
 
     def start_ocr_capture(self) -> None:
+        if self._update_installing:
+            return
         if not ocr_available():
             Toast.show_text("이 시스템에서 Windows OCR을 사용할 수 없습니다")
             return
@@ -617,6 +662,8 @@ class SsakKimchiApp:
             self.start_record_gif()
 
     def _begin_record_flow(self, mode: str, overlay_mode: str, hint: str) -> None:
+        if self._update_installing:
+            return
         if self._recorder.is_active():
             Toast.show_text("이미 녹화 중입니다 · 정지 후 다시 시도")
             return
@@ -679,6 +726,8 @@ class SsakKimchiApp:
         Toast.show_text(message or "녹화 실패", duration_ms=3200)
 
     def start_color_pick(self) -> None:
+        if self._update_installing:
+            return
         if self._dock.is_tucked():
             self._dock.peek()
         self._dock.set_auto_tuck_paused(True)
@@ -796,7 +845,8 @@ class SsakKimchiApp:
         except Exception:
             pass
         try:
-            self._show_exit_ad()
+            if not self._update_installing:
+                self._show_exit_ad()
         except Exception:
             log.exception("exit ad failed")
         self._hotkeys.stop()

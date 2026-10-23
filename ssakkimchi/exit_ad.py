@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import atexit
 import json
 import sys
 import tempfile
@@ -41,7 +42,7 @@ BANNER_ENABLED = True
 BANNER_IMAGE = "exit_ad.png"
 
 # 배너 또는 [방문] 버튼 클릭 시 열 주소. 빈 문자열("")이면 클릭/버튼 비활성.
-BANNER_URL = "https://offcut.app"
+BANNER_URL = "https://www.offcut.dev/"
 
 # ── 텍스트 카드(이미지 없을 때 fallback)용 문구 ──
 BANNER_WINDOW_TITLE = "OFFCUT STUDIO"            # 창 제목
@@ -116,8 +117,10 @@ def fetch_remote_banner(app_key: str = "") -> None:
             suffix = Path(p.path).suffix.lower()
             if suffix not in (".png", ".jpg", ".jpeg", ".webp"):
                 suffix = ".png"
-            tmp = Path(tempfile.gettempdir()) / f"ssak_exit_ad{suffix}"
-            tmp.write_bytes(img)
+            with tempfile.NamedTemporaryFile(prefix="ssak_exit_ad_", suffix=suffix, delete=False) as handle:
+                handle.write(img)
+                tmp = Path(handle.name)
+            atexit.register(lambda: tmp.unlink(missing_ok=True))
             _remote_image_path = tmp
         except Exception:
             return
@@ -128,6 +131,10 @@ def fetch_remote_banner(app_key: str = "") -> None:
 def _cfg(key: str, default):
     """원격 promo.json 값이 있으면 그것을, 없으면 내장 기본값을 반환."""
     v = _remote_banner.get(key)
+    # Older deployed promo.json still names the former domain. Keep its link
+    # on the canonical built-in destination until the website config is published.
+    if key == "url" and isinstance(v, str) and v.rstrip("/") == "https://offcut.app":
+        return BANNER_URL
     if v is None or v == "":
         return default
     return v
@@ -276,6 +283,8 @@ class ExitAdDialog(QDialog):
             """
         )
         close_btn.clicked.connect(self.accept)
+        close_btn.setDefault(True)
+        close_btn.setFocus()
 
         rl.addStretch()
         rl.addWidget(close_btn)
@@ -283,7 +292,7 @@ class ExitAdDialog(QDialog):
         if _cfg('url', BANNER_URL):
             visit_btn = QPushButton(_cfg('button', BANNER_BUTTON))
             visit_btn.setCursor(Qt.PointingHandCursor)
-            visit_btn.setDefault(True)
+            visit_btn.setAutoDefault(False)
             visit_btn.setStyleSheet(
                 f"""
                 QPushButton {{
@@ -302,6 +311,12 @@ class ExitAdDialog(QDialog):
 
     def _open_link(self) -> None:
         u = _cfg('url', BANNER_URL)
-        if u:
-            QDesktopServices.openUrl(QUrl(u))
+        try:
+            p = urlparse(u) if isinstance(u, str) else None
+            if (p and p.scheme == "https" and p.hostname in ("offcut.dev", "www.offcut.dev")
+                    and not p.username and not p.password and p.port in (None, 443)
+                    and not any(c.isspace() for c in u)):
+                QDesktopServices.openUrl(QUrl(u))
+        except ValueError:
+            pass
         self.accept()

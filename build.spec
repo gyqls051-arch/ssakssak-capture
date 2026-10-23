@@ -42,6 +42,7 @@ exe = EXE(
     [],
     exclude_binaries=True,
     name='싹싹김치 캡처',
+    version='version_info.txt',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

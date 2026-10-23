@@ -13,6 +13,8 @@
 AppId={{B7A4F5E2-9C2D-4B1A-8E3F-1F2A3B4C5D6E}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+VersionInfoProductName=SsakSsak Capture
+VersionInfoProductVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues

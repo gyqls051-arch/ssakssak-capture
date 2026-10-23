@@ -227,13 +227,10 @@ def build_installer() -> Optional[Path]:
         sys.stderr.write(proc.stdout)
         log(f"ISCC failed (rc={proc.returncode}) — 인스톨러 skip.")
         return None
-    # 옛 버전 exe가 dist에 남아 있을 수 있으므로 '가장 최근 것'을 집는다
-    setups = sorted(
-        DIST_ROOT.glob("Setup_SsakKimchiCapture_*.exe"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    setup = setups[0] if setups else None
+    sys.path.insert(0, str(ROOT))
+    from ssakkimchi.version import VERSION
+    expected = DIST_ROOT / f"Setup_SsakKimchiCapture_{VERSION}.exe"
+    setup = expected if expected.is_file() else None
     if setup is None:
         log("Setup_*.exe 못 찾음.")
         return None
@@ -256,13 +253,39 @@ def zip_bundle() -> None:
     log(f"zip ready: {ZIP_PATH} ({size_mb:.1f} MB)")
 
 
+def sign_artifact(artifact: Path) -> None:
+    sys.path.insert(0, str(ROOT))
+    from ssakkimchi.ssak_installer import system_powershell
+    from ssakkimchi.version import VERSION
+    subprocess.run([system_powershell(), "-NoProfile", "-NonInteractive", "-File",
+                    str(ROOT / "tools" / "sign_release.ps1"), "-Artifact",
+                    str(artifact.relative_to(ROOT)), "-Product", "SsakSsak Capture",
+                    "-Version", VERSION], cwd=str(ROOT), check=True)
+
+
 def main() -> int:
     try:
+        if "--prepare-only" in sys.argv:
+            ensure_ffmpeg()
+            run_pyinstaller()
+            write_readme()
+            return 0
+        if "--bundle-only" in sys.argv:
+            zip_bundle()
+            if build_installer() is None:
+                raise RuntimeError("Release installer is required")
+            return 0
         ensure_ffmpeg()
         run_pyinstaller()
+        if os.environ.get("SSAK_RELEASE_BUILD") == "1":
+            sign_artifact(APP_FOLDER / "싹싹김치 캡처.exe")
         write_readme()
         zip_bundle()
         installer = build_installer()
+        if os.environ.get("SSAK_RELEASE_BUILD") == "1":
+            if installer is None:
+                raise RuntimeError("Signed release requires the installer")
+            sign_artifact(installer)
     except Exception as exc:
         log(f"FAILED: {exc}")
         return 1

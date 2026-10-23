@@ -16,6 +16,10 @@ jobs:
   build:
     name: Build installer and publish release
     runs-on: windows-latest
+    env:
+      SSAK_SIGN_THUMBPRINT: ${{ vars.SSAK_SIGN_THUMBPRINT }}
+      SSAK_SIGN_TIMESTAMP: ${{ vars.SSAK_SIGN_TIMESTAMP }}
+      SSAK_RELEASE_BUILD: "1"
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -40,8 +44,25 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 
-      - name: Package (ffmpeg + PyInstaller + zip + installer)
-        run: python tools/package.py
+      - name: Build executable without signing secrets
+        run: python tools/package.py --prepare-only
+
+      - name: Sign inner application
+        env:
+          SSAK_SIGN_PFX: ${{ secrets.SSAK_SIGN_PFX }}
+          SSAK_SIGN_PASSWORD: ${{ secrets.SSAK_SIGN_PASSWORD }}
+        shell: pwsh
+        run: ./tools/sign_release.ps1 -Artifact "dist/싹싹김치 캡처/싹싹김치 캡처.exe" -Product "SsakSsak Capture" -Version "1.0.4"
+
+      - name: Bundle signed application
+        run: python tools/package.py --bundle-only
+
+      - name: Sign setup
+        env:
+          SSAK_SIGN_PFX: ${{ secrets.SSAK_SIGN_PFX }}
+          SSAK_SIGN_PASSWORD: ${{ secrets.SSAK_SIGN_PASSWORD }}
+        shell: pwsh
+        run: ./tools/sign_release.ps1 -Artifact "dist/Setup_SsakKimchiCapture_1.0.4.exe" -Product "SsakSsak Capture" -Version "1.0.4"
 
       - name: Publish release
         env:
