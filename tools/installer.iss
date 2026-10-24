@@ -29,7 +29,7 @@ OutputBaseFilename=Setup_SsakKimchiCapture_{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-SetupIconFile=
+SetupIconFile=..\assets\brand\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 ; LGPL 의무 충족 + 사용자 라이선스 인지 위해 동의 화면 표시
 LicenseFile=..\LICENSE
@@ -51,7 +51,7 @@ Source: "..\CHANGELOG.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\제거"; Filename: "{uninstallexe}"
+Name: "{group}\제거"; Filename: "{uninstallexe}"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]

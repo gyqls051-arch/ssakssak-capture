@@ -48,7 +48,7 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
-    icon=None,
+    icon=os.path.join(_assets_dir, 'brand', 'app.ico'),
 )
 coll = COLLECT(
     exe,

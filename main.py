@@ -5,6 +5,7 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QApplication
 
 from ssakkimchi.app import SsakKimchiApp
+from ssakkimchi.icons import app_icon
 from ssakkimchi.logging_setup import get_logger, setup_logging
 from ssakkimchi.single_instance import InstanceServer, already_running
 from ssakkimchi.version import version_string
@@ -20,6 +21,7 @@ def main():
     )
     app = QApplication(sys.argv)
     app.setApplicationName("싹싹김치 캡처")
+    app.setWindowIcon(app_icon())
     app.setApplicationDisplayName("싹싹김치 캡처")
     app.setQuitOnLastWindowClosed(False)
 

@@ -1,3 +1,6 @@
+from pathlib import Path
+import sys
+
 from PySide6.QtCore import QByteArray, Qt
 from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
@@ -120,4 +123,6 @@ def make_icon(name: str, size: int = 24, color: str = None) -> QIcon:
 
 
 def app_icon(size: int = 64) -> QIcon:
-    return make_icon("app", size=size, color="#1A1A1A")
+    root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
+    icon = QIcon(str(root / "assets" / "brand" / "app.ico"))
+    return icon if not icon.isNull() else make_icon("app", size=size, color="#1A1A1A")
