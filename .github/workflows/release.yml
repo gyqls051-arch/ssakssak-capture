@@ -52,7 +52,7 @@ jobs:
           SSAK_SIGN_PFX: ${{ secrets.SSAK_SIGN_PFX }}
           SSAK_SIGN_PASSWORD: ${{ secrets.SSAK_SIGN_PASSWORD }}
         shell: pwsh
-        run: ./tools/sign_release.ps1 -Artifact "dist/싹싹김치 캡처/싹싹김치 캡처.exe" -Product "SsakSsak Capture" -Version "1.0.4"
+        run: ./tools/sign_release.ps1 -Artifact "dist/싹싹김치 캡처/싹싹김치 캡처.exe" -Product "SsakSsak Capture" -Version "1.0.5"
 
       - name: Bundle signed application
         run: python tools/package.py --bundle-only
@@ -62,7 +62,7 @@ jobs:
           SSAK_SIGN_PFX: ${{ secrets.SSAK_SIGN_PFX }}
           SSAK_SIGN_PASSWORD: ${{ secrets.SSAK_SIGN_PASSWORD }}
         shell: pwsh
-        run: ./tools/sign_release.ps1 -Artifact "dist/Setup_SsakKimchiCapture_1.0.4.exe" -Product "SsakSsak Capture" -Version "1.0.4"
+        run: ./tools/sign_release.ps1 -Artifact "dist/Setup_SsakKimchiCapture_1.0.5.exe" -Product "SsakSsak Capture" -Version "1.0.5"
 
       - name: Publish release
         env:

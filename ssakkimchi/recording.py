@@ -76,6 +76,23 @@ def _creation_flags() -> int:
     return 0
 
 
+def _recording_is_readable(path: Optional[Path]) -> bool:
+    """Decode one tiny frame before reporting completion (runs on the stop worker)."""
+    ffmpeg = find_ffmpeg()
+    if path is None or not path.is_file() or not path.stat().st_size or not ffmpeg:
+        return False
+    try:
+        result = subprocess.run(
+            [str(ffmpeg), "-v", "error", "-xerror", "-nostdin", "-i", str(path),
+             "-map", "0:v:0", "-frames:v", "1", "-vf", "scale=2:2", "-pix_fmt", "gray", "-f", "rawvideo", "pipe:1"],
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            timeout=10, creationflags=_creation_flags(),
+        )
+        return result.returncode == 0 and len(result.stdout) == 4
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 def _timestamped(kind: str, ext: str, base: Optional[Path] = None) -> Path:
     if base is None:
         base = captures_dir()
@@ -370,7 +387,7 @@ class RecordingController(QObject):
                         proc.wait(timeout=2)
                     except subprocess.TimeoutExpired:
                         proc.kill()
-                ok = (proc.returncode == 0)
+                ok = (proc.returncode == 0) and _recording_is_readable(self._mp4_path)
             except Exception:
                 ok = False
             self._async_done.emit(ok)
@@ -380,6 +397,9 @@ class RecordingController(QObject):
     def _on_async_stop_complete(self, ok: bool) -> None:
         self._proc = None
         self._stopping = False
+        if not ok:
+            self.failed.emit("녹화를 완료하지 못했거나 영상 파일을 확인할 수 없습니다. 다시 녹화해 주세요.")
+            return
         self._after_ffmpeg_stop()
 
     def cancel(self) -> None:
