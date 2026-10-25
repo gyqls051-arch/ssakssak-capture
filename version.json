@@ -1,8 +1,8 @@
 {
-  "latest_version": "1.0.4",
+  "latest_version": "1.0.5",
   "min_supported_version": "1.0.0",
   "killswitch": false,
   "killswitch_message": "",
   "download_url": "https://github.com/gyqls051-arch/ssakssak-capture/releases/latest",
-  "release_notes": ""
+  "release_notes": "녹화 종료와 실제 영상 판독 결과를 확인한 뒤 저장 완료를 안내합니다."
 }
